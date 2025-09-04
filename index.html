@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificador de Patología ARCADE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #0d0d0d;
+            color: #ffffff;
+            text-shadow: 2px 2px #ff00ff, -2px -2px #00ffff;
+        }
+        .container-arcade {
+            border: 5px solid #00ffff;
+            border-radius: 15px;
+            padding: 1rem;
+            box-shadow: 0 0 15px #00ffff, 0 0 25px #ff00ff inset;
+            background: rgba(0, 0, 0, 0.7);
+            width: 95vw; /* Usa el ancho de la ventana */
+            max-width: 1400px; /* Un máximo más grande para pantallas ultra anchas */
+        }
+        .btn-arcade {
+            background-color: #1a1a1a;
+            border: 3px solid #ff00ff;
+            color: #ffffff;
+            padding: 1rem 1.5rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 10px #ff00ff;
+            text-decoration: none; 
+            display: inline-block;
+        }
+        .btn-arcade:hover:not(:disabled) {
+            background-color: #ff00ff;
+            color: #0d0d0d;
+            text-shadow: none;
+            box-shadow: 0 0 20px #ff00ff, 0 0 30px #ffffff;
+            transform: translateY(-5px);
+        }
+        .btn-arcade:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+            border-color: #888;
+            box-shadow: none;
+        }
+        .game-screen {
+            height: 65vh; /* Usa la altura de la ventana */
+            width: 100%;
+            border: 3px dashed #00ffff;
+            position: relative;
+            overflow: hidden;
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .falling-word {
+            position: absolute;
+            color: #f3ff58;
+            font-size: 1.25rem;
+            white-space: nowrap;
+            text-shadow: 2px 2px #ff00ff;
+            will-change: top;
+            animation: fall linear;
+        }
+        @keyframes fall {
+            from { top: -50px; }
+            to { top: 100%; }
+        }
+        .player-zone {
+            position: absolute;
+            bottom: 0;
+            width: 50%;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .target {
+            position: absolute;
+            background-color: #00ffff;
+            color: #0d0d0d;
+            text-shadow: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 3px solid #f3ff58;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 0.9rem;
+            animation: move-across linear;
+        }
+        @keyframes move-across {
+            from { transform: translateX(-150px); } /* Empieza fuera de la pantalla */
+            to { transform: translateX(100vw); } /* Termina fuera de la pantalla */
+        }
+        /* Media queries para pantallas más grandes */
+        @media (min-width: 768px) {
+            .container-arcade { padding: 2rem; }
+            .falling-word { font-size: 1.5rem; }
+            .target { font-size: 1.1rem; padding: 12px 18px;}
+            .player-zone { font-size: 2rem; }
+        }
+        @media (min-width: 1280px) {
+             .falling-word { font-size: 1.75rem; }
+             .target { font-size: 1.25rem; }
+             .player-zone { font-size: 2.5rem; }
+        }
+        .player-zone-sintoma { left: 0; border-top: 5px solid #ff00ff; }
+        .player-zone-sintoma:hover { background-color: rgba(255, 0, 255, 0.2); }
+        .player-zone-signo { right: 0; border-top: 5px solid #00ffff; }
+        .player-zone-signo:hover { background-color: rgba(0, 255, 255, 0.2); }
+        .hearts-container svg { fill: #ff0000; filter: drop-shadow(0 0 5px #ff0000); }
+        .flash-correct { animation: flash-correct 0.3s; }
+        .flash-incorrect { animation: flash-incorrect 0.3s; }
+        @keyframes flash-correct {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(0, 255, 0, 0.5); }
+        }
+        @keyframes flash-incorrect {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(255, 0, 0, 0.5); }
+        }
+        .hidden { display: none; }
+        .select-arcade {
+            background-color: #1a1a1a;
+            border: 3px solid #00ffff;
+            color: #ffffff;
+            padding: 0.5rem;
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 1px 1px #ff00ff;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .star { color: #f3ff58; font-size: 3rem; text-shadow: 2px 2px #ff9900; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .report-table th, .report-table td { border: 2px solid #00ffff; padding: 8px; text-align: left; font-size: 0.75rem; }
+        .report-table th { background-color: #ff00ff; color: #0d0d0d; text-shadow: none; }
+        .delete-btn { background: none; border: none; color: #ff0000; cursor: pointer; font-size: 1rem; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #report-screen, #report-screen * { visibility: visible; }
+            #report-screen { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none; }
+            .report-table th, .report-table td { color: black; text-shadow: none; font-size: 12pt; }
+            .report-table th { background-color: #ccc !important; }
+        }
+    </style>
+</head>
+<body class="w-full min-h-screen flex items-center justify-center p-4">
+
+    <!-- Pantalla de Inicio -->
+    <div id="start-screen" class="container-arcade text-center space-y-6">
+        <h1 class="text-3xl md:text-5xl xl:text-6xl">Clasificador<br>de Patología ARCADE</h1>
+        <div class="space-y-4">
+            <select id="group-select" class="select-arcade md:text-lg">
+                <option value="">-- SELECCIONA GRUPO --</option>
+                <option value="5-1">Grupo 5-1</option>
+                <option value="5-2">Grupo 5-2</option>
+                <option value="5-3">Grupo 5-3</option>
+            </select>
+            <select id="student-select" class="select-arcade md:text-lg" disabled>
+                <option value="">-- SELECCIONA ALUMNO --</option>
+            </select>
+        </div>
+        <button id="start-button" class="btn-arcade text-2xl md:text-3xl" disabled>Empezar</button>
+        <div class="text-left text-xs sm:text-sm md:text-base mt-4 p-4 border border-dashed border-yellow-300 rounded-lg">
+            <h2 class="text-yellow-300 text-base sm:text-lg md:text-xl mb-2">Instrucciones:</h2>
+            <p><span class="text-cyan-300">Nivel 1:</span> Clasifica el término que cae.</p>
+            <p><span class="text-cyan-300">Nivel 2:</span> Responde 5 preguntas (¡10 seg!).</p>
+            <p><span class="text-cyan-300">Nivel 3:</span> ¡Dispara al objetivo correcto (¡10 seg!)!</p>
+            <p><span class="text-cyan-300">Objetivo:</span> ¡Conserva tus vidas para ganar más estrellas!</p>
+        </div>
+    </div>
+
+    <!-- Pantalla Principal del Juego -->
+    <div id="main-game" class="hidden container-arcade">
+        <div id="level-1">
+            <div class="flex justify-between items-center mb-4 text-xl sm:text-2xl md:text-3xl">
+                <div>Score: <span id="score">0</span></div>
+                <div id="lives" class="flex items-center gap-2 hearts-container"></div>
+            </div>
+            <div id="game-container" class="game-screen">
+                <div id="zone-sintoma" class="player-zone player-zone-sintoma" data-type="sintoma">SÍNTOMA</div>
+                <div id="zone-signo" class="player-zone player-zone-signo" data-type="signo">SIGNO</div>
+            </div>
+             <div id="level-indicator" class="text-center mt-4 text-lg sm:text-xl md:text-2xl text-yellow-400">NIVEL 1: SÍNTOMAS vs SIGNOS</div>
+        </div>
+        <div id="level-2" class="hidden text-center">
+             <div class="flex justify-between items-center mb-4 text-xl sm:text-2xl md:text-3xl">
+                <div>Score: <span id="score-l2">0</span></div>
+                <div id="timer-l2" class="text-yellow-400"></div>
+                <div id="lives-l2" class="flex items-center gap-2 hearts-container"></div>
+            </div>
+            <h2 id="question-title" class="text-xl sm:text-2xl md:text-3xl mb-4 text-yellow-400">NIVEL 2: CONCEPTOS (5 Preguntas)</h2>
+            <p id="question-text" class="text-base sm:text-xl md:text-2xl h-24 flex items-center justify-center"></p>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"></div>
+        </div>
+        <div id="level-3" class="hidden w-full">
+            <div class="flex justify-between items-center mb-4 text-xl sm:text-2xl md:text-3xl">
+                <div>Score: <span id="score-l3">0</span></div>
+                <div id="timer-l3" class="text-yellow-400"></div>
+                <div id="lives-l3" class="flex items-center gap-2 hearts-container"></div>
+            </div>
+            <p id="target-question" class="text-center text-sm md:text-lg mb-2 h-10"></p>
+            <div id="target-container" class="game-screen p-0"></div>
+            <div class="text-center mt-4 text-lg sm:text-xl md:text-2xl text-yellow-400">NIVEL 3: GALERÍA DE TIRO</div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Fin de Juego -->
+    <div id="game-over-screen" class="hidden container-arcade text-center space-y-4">
+        <h2 class="text-4xl md:text-5xl xl:text-6xl text-red-500">GAME OVER</h2>
+        <div id="player-info" class="text-lg md:text-xl text-cyan-300"></div>
+        <p class="text-2xl md:text-3xl">Puntuación Final: <span id="final-score">0</span></p>
+        <div id="award-section">
+            <p class="text-xl md:text-2xl text-yellow-400">Resultado: <span id="level-achieved"></span></p>
+            <p class="text-2xl md:text-3xl text-yellow-400">Créditos: <span id="stars-awarded"></span></p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-4">
+            <button id="restart-button" class="btn-arcade text-xl">Reiniciar</button>
+            <button id="report-button" class="btn-arcade text-xl">Ver Reporte</button>
+            <button id="download-pdf-button" class="btn-arcade text-xl !bg-cyan-500 !border-yellow-300 !text-black !text-shadow-none">Descargar PDF</button>
+        </div>
+    </div>
+    
+    <!-- Pantalla de Reporte -->
+    <div id="report-screen" class="hidden container-arcade w-full">
+        <h2 class="text-3xl md:text-4xl text-center mb-4">Reporte de Puntuaciones</h2>
+        <div id="report-content" class="overflow-x-auto"></div>
+        <div class="flex flex-wrap justify-center gap-4 mt-6 no-print">
+            <button id="back-to-start-button" class="btn-arcade text-lg">Volver al Inicio</button>
+            <button id="download-report-button" class="btn-arcade text-lg">Descargar Reporte</button>
+            <button id="delete-all-button" class="btn-arcade text-lg !bg-red-600 !border-yellow-300">Borrar Todo</button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Alumnos ---
+        const studentData = { "5-1": [ "AGUILAR GONZÁLEZ ALEXIS EMMANUEL", "ARMENTA FÉLIX GERMÁN", "ARREDONDO AGUILAR LITZY ESTEFANIA", "ARREDONDO LÓPEZ NELLY ALEJANDRA", "CUADRAS LUGO DULCE MAYTE", "CUADRAS MORENO CHRISTOPHER IRÁN", "ESCUDERO SALCEDO ANA BELÉN", "ESPINOZA LEYVA CINDY BELÉN", "GAMBOA LUGO KATHIA ISABEL", "GARNICA NUÑEZ ANA CARMEN", "GERARDO BOJÓRQUEZ METZLI", "GONZALEZ RUBIO ENRIQUE", "GUZMÁN LEÓN FÁTIMA ESTEFANÍA", "HUERTA NIEBLAS NAILEA", "JACOBO ISMERIO ANDRÉS ROGELIO", "LIE ESPINOZA LUIS ROBERTO", "LIZARRAGA SÁNCHEZ CARLOS UVALDO", "LUNA RODRÍGEZ WILLIAMS ALFREDO", "MASCAREÑO MORALES LUIS MARIO", "MENDOZA VILLANUEVA LUIS ENRIQUE", "MONTENEGRO GONZÁLEZ MARÍA JOSÉ", "ONTIVEROS MORALES BYANCA", "PARRA SÁNCHEZ VICTORIA AMAIRANY", "SARABIA CASTRO FRIDA VALERIA", "SEPULVEDA LUGO LUIS CARLOS", "SERRANO GONZÁLEZ MIGUEL ÁNGEL", "URBALEJO VALENZUELA JOKSAN JASSIEL", "ZAVALA JOANNE LORENΝΑ" ], "5-2": [ "ACEVES FERNÁNDEZ ANA VALERIA", "ALANIZ FREGOSO ASHLEY ABISH", "AMBRIZ HERRERA MIGUEL ANGEL", "ARREDONDO FELIX SEBASTIAN", "BARRERA GARCÍA DULCE ALEJANDRA", "CÁRDENAS PEREZ MARIA YOLANDA", "CEBREROS GASTELUM NATALIA", "DOMINGUEZ PALMA MARIANA", "ESEVERRE QUEVEDO KEVIN ALEJANRO", "ESTRADA CRUZ CAMILA AURORA", "FELIZ OBESO ANA KAREN", "LEYVA VIDOVICH HERICK RAEL", "MÁRQUEZ GASTELUM KARIME NATALY", "MENDOZA GARCÍA GISELLE ARELY", "NUÑEZ GALLARDO MARIAN LEYLANI", "URREA LÓPEZ WENDY VIANNEY", "VILLAREAL LÓPEZ ANA MARÍA" ], "5-3": [ "CALDERÓN GARCÍA BRITANNY RUBY", "CASTRO NIEBLA FRANCISCO JAVIER", "CAZAREZ JIMENEZ LORENA JACQUELINE", "HERAS BELTRÁN JOSÉ ÁNGEL", "LUGO BUELNA SEBASTIAN", "PANUSOPULOS LÓPEZ NICKOLAS", "QUINTERO MILLÁN CAROLINA", "ROJAS ESPINOZA MANUEL EDUARDO", "SOMERA MIRANDA ELIZA ALEJANDRA", "VALENZUELA GARCÍA SUSAN GABRIELA", "VALENZUELA RENDÓN MARÍA CAMILA", "ALVARADO ROMERO MARIA FERNANDA", "GUARECA MONJARDIN RAMÓN EDUARDO" ] };
+
+        // --- Elementos del DOM ---
+        const startScreen = document.getElementById('start-screen'), mainGame = document.getElementById('main-game'), gameOverScreen = document.getElementById('game-over-screen'), reportScreen = document.getElementById('report-screen');
+        const startButton = document.getElementById('start-button'), restartButton = document.getElementById('restart-button'), reportButton = document.getElementById('report-button'), backToStartButton = document.getElementById('back-to-start-button'), downloadReportButton = document.getElementById('download-report-button'), downloadPdfButton = document.getElementById('download-pdf-button'), deleteAllButton = document.getElementById('delete-all-button');
+        const groupSelect = document.getElementById('group-select'), studentSelect = document.getElementById('student-select'), playerInfo = document.getElementById('player-info'), reportContent = document.getElementById('report-content');
+        const level1 = document.getElementById('level-1'), gameContainer = document.getElementById('game-container'), scoreDisplay = document.getElementById('score'), livesDisplay = document.getElementById('lives'), zoneSintoma = document.getElementById('zone-sintoma'), zoneSigno = document.getElementById('zone-signo');
+        const level2 = document.getElementById('level-2'), scoreDisplayL2 = document.getElementById('score-l2'), livesDisplayL2 = document.getElementById('lives-l2'), questionText = document.getElementById('question-text'), optionsContainer = document.getElementById('options-container'), timerL2 = document.getElementById('timer-l2');
+        const level3 = document.getElementById('level-3'), scoreDisplayL3 = document.getElementById('score-l3'), livesDisplayL3 = document.getElementById('lives-l3'), targetQuestion = document.getElementById('target-question'), targetContainer = document.getElementById('target-container'), timerL3 = document.getElementById('timer-l3');
+        const finalScoreDisplay = document.getElementById('final-score'), levelAchievedDisplay = document.getElementById('level-achieved'), starsAwardedDisplay = document.getElementById('stars-awarded');
+        
+        // --- BANCO DE DATOS EXPANDIDO ---
+        const terms = [
+            { word: 'Dolor de cabeza', type: 'sintoma' }, { word: 'Fiebre', type: 'signo' },
+            { word: 'Fatiga', type: 'sintoma' }, { word: 'Eritema', type: 'signo' },
+            { word: 'Mareo', type: 'sintoma' }, { word: 'Taquicardia', type: 'signo' },
+            { word: 'Náusea', type: 'sintoma' }, { word: 'Palidez', type: 'signo' },
+            { word: 'Disnea', type: 'sintoma' }, { word: 'Cianosis', type: 'signo' },
+            { word: 'Ansiedad', type: 'sintoma' }, { word: 'Hipertensión', type: 'signo' },
+            { word: 'Escalofríos', type: 'sintoma' }, { word: 'Hallazgo Radiológico', type: 'signo' },
+            { word: 'Dolor Abdominal', type: 'sintoma' }, { word: 'Signo de Babinski', type: 'signo' },
+            { word: 'Visión borrosa', type: 'sintoma' }, { word: 'Ictericia', type: 'signo' },
+            { word: 'Anorexia', type: 'sintoma' }, { word: 'Edema', type: 'signo' },
+            { word: 'Parestesia', type: 'sintoma' }, { word: 'Soplo Cardíaco', type: 'signo' },
+            { word: 'Astenia', type: 'sintoma' }, { word: 'Leucocitosis', type: 'signo' },
+            { word: 'Insomnio', type: 'sintoma' }, { word: 'Trombocitopenia', type: 'signo' },
+            { word: 'Tos', type: 'sintoma' }, { word: 'Biomarcador Elevado', type: 'signo' },
+            { word: 'Prurito', type: 'sintoma' }, { word: 'Hepatomegalia', type: 'signo' },
+            { word: 'Vértigo', type: 'sintoma' }, { word: 'Esplenomegalia', type: 'signo' },
+            { word: 'Mialgia', type: 'sintoma' }, { word: 'Ascitis', type: 'signo' },
+            { word: 'Artralgia', type: 'sintoma' }, { word: 'Linfadenopatía', type: 'signo' },
+            { word: 'Cefalea Tensional', type: 'sintoma' }, { word: 'Petequias', type: 'signo' },
+            { word: 'Dolor Torácico', type: 'sintoma' }, { word: 'Equimosis', type: 'signo' },
+            { word: 'Polifagia', type: 'sintoma' }, { word: 'Bradicardia', type: 'signo' },
+            { word: 'Polidipsia', type: 'sintoma' }, { word: 'Hipotensión', type: 'signo' },
+            { word: 'Poliuria', type: 'sintoma' }, { word: 'Exoftalmos', type: 'signo' },
+            { word: 'Acúfenos', type: 'sintoma' }, { word: 'Nistagmo', type: 'signo' },
+            { word: 'Diaforesis', type: 'sintoma' }, { word: 'Rigidez de nuca', type: 'signo' },
+            { word: 'Anosmia', type: 'sintoma' }, { word: 'Fasciculaciones', type: 'signo' },
+            { word: 'Disgeusia', type: 'sintoma' }, { word: 'Roncus', type: 'signo' },
+            { word: 'Confusión', type: 'sintoma' }, { word: 'Ataxia', type: 'signo' },
+            { word: 'Letargo', type: 'sintoma' }, { word: 'Afasia', type: 'signo' },
+            { word: 'Palpitaciones', type: 'sintoma' }, { word: 'Arritmia', type: 'signo' },
+            { word: 'Opresión en el pecho', type: 'sintoma' }, { word: 'Roce pericárdico', type: 'signo' },
+            { word: 'Calambres', type: 'sintoma' }, { word: 'Hipocratismo digital', type: 'signo' },
+            { word: 'Fotofobia', type: 'sintoma' }, { word: 'Midriasis', type: 'signo' },
+            { word: 'Fonofobia', type: 'sintoma' }, { word: 'Miosis', type: 'signo' },
+            { word: 'Irritabilidad', type: 'sintoma' }, { word: 'Anisocoria', type: 'signo' },
+            { word: 'Tenesmo', type: 'sintoma' }, { word: 'Melena', type: 'signo' },
+            { word: 'Disfagia', type: 'sintoma' }, { word: 'Hematemesis', type: 'signo' },
+            { word: 'Pirosis', type: 'sintoma' }, { word: 'Hematoquecia', type: 'signo' },
+            { word: 'Lipotimia', type: 'sintoma' }, { word: 'Telangiectasias', type: 'signo' },
+            { word: 'Sudoración nocturna', type: 'sintoma' }, { word: 'Xantelasma', type: 'signo' },
+            { word: 'Boca seca (Xerostomía)', type: 'sintoma' }, { word: 'Ginecomastia', type: 'signo' },
+            { word: 'Sensación de cuerpo extraño', type: 'sintoma' }, { word: 'Estridor', type: 'signo' },
+            { word: 'Alucinaciones', type: 'sintoma' }, { word: 'Sibilancias', type: 'signo' },
+            { word: 'Despersonalización', type: 'sintoma' }, { word: 'Crepitantes', type: 'signo' },
+            { word: 'Apatía', type: 'sintoma' }, { word: 'Derrame pleural', type: 'signo' },
+            { word: 'Angustia', type: 'sintoma' }, { word: 'Acidosis', type: 'signo' },
+            { word: 'Desorientación', type: 'sintoma' }, { word: 'Alcalosis', type: 'signo' },
+            { word: 'Incontinencia', type: 'sintoma' }, { word: 'Hipoxemia', type: 'signo' },
+            { word: 'Nicturia', type: 'sintoma' }, { word: 'Hipercapnia', type: 'signo' },
+            { word: 'Hemoptisis', type: 'sintoma' }, { word: 'Proteinuria', type: 'signo' },
+            { word: 'Epistaxis', type: 'sintoma' }, { word: 'Hematuria', type: 'signo' },
+            { word: 'Odinofagia', type: 'sintoma' }, { word: 'Glucosuria', type: 'signo' },
+            { word: 'Hipo', type: 'sintoma' }, { word: 'Bilirrubinemia', type: 'signo' },
+            { word: 'Acoria', type: 'sintoma' }, { word: 'Anemia', type: 'signo' },
+            { word: 'Agorafobia', type: 'sintoma' }, { word: 'Policitemia', type: 'signo' },
+            { word: 'Anhedonia', type: 'sintoma' }, { word: 'Leucopenia', type: 'signo' },
+            { word: 'Borborigmos', type: 'sintoma' }, { word: 'Cilindros en orina', type: 'signo' },
+            { word: 'Diplopía', type: 'sintoma' }, { word: 'Edema de papila', type: 'signo' },
+            { word: 'Escotoma', type: 'sintoma' }, { word: 'Hemorragia retiniana', type: 'signo' },
+            { word: 'Fosfenos', type: 'sintoma' }, { word: 'Signo de Romberg', type: 'signo' },
+            { word: 'Glosodinia', type: 'sintoma' }, { word: 'Signo de Lhermitte', type: 'signo' },
+            { word: 'Halitosis (subjetiva)', type: 'sintoma' }, { word: 'Signo de Chvostek', type: 'signo' },
+            { word: 'Hipersomnia', type: 'sintoma' }, { word: 'Signo de Trousseau', type: 'signo' },
+            { word: 'Libido disminuida', type: 'sintoma' }, { word: 'Soplo carotídeo', type: 'signo' },
+            { word: 'Nerviosismo', type: 'sintoma' }, { word: 'Tercer ruido cardíaco (R3)', type: 'signo' },
+            { word: 'Polaquiuria', type: 'sintoma' }, { word: 'Cuarto ruido cardíaco (R4)', type: 'signo' },
+            { word: 'Somnolencia', type: 'sintoma' }, { word: 'Pulso paradójico', type: 'signo' },
+            { word: 'Urgencia miccional', type: 'sintoma' }, { word: 'Ingurgitación yugular', type: 'signo' },
+            { word: 'Xeroftalmia', type: 'sintoma' }, { word: 'Reflejo hepatoyugular', type: 'signo' },
+            { word: 'Dolor óseo', type: 'sintoma' }, { word: 'Manchas de Koplik', type: 'signo' },
+            { word: 'Sensación de frío', type: 'sintoma' }, { word: 'Nódulos de Osler', type: 'signo' },
+            { word: 'Sensación de calor', type: 'sintoma' }, { word: 'Lesiones de Janeway', type: 'signo' },
+            { word: 'Amusia', type: 'sintoma' }, { word: 'Dedos en palillo de tambor', type: 'signo' }
+        ];
+
+        const allQuestions = [
+            { q: 'Causa o conjunto de causas de una enfermedad.', a: 'Etiología', opts: ['Patogénesis', 'Lesión', 'Pronóstico'] },
+            { q: 'Mecanismos por los cuales se desarrolla una enfermedad.', a: 'Patogénesis', opts: ['Etiología', 'Diagnóstico', 'Complicación'] },
+            { q: 'Daño observable en células, tejidos u órganos.', a: 'Lesión', opts: ['Síntoma', 'Signo', 'Síndrome'] },
+            { q: 'Conjunto global de signos y síntomas de un paciente.', a: 'Manifestación clínica', opts: ['Etiología', 'Patogénesis', 'Diagnóstico'] },
+            { q: 'Identificación precisa de una enfermedad.', a: 'Diagnóstico', opts: ['Pronóstico', 'Recuperación', 'Remisión'] },
+            { q: 'Predicción sobre la evolución probable de una enfermedad.', a: 'Pronóstico', opts: ['Diagnóstico', 'Complicación', 'Recaída'] },
+            { q: 'Problemas que surgen durante el curso de una enfermedad.', a: 'Complicación', opts: ['Remisión', 'Recuperación', 'Etiología'] },
+            { q: 'Retorno al estado de salud tras una enfermedad.', a: 'Recuperación', opts: ['Recaída', 'Estado terminal', 'Morbidez'] },
+            { q: 'Evolución de una enfermedad en el tiempo.', a: 'Curso clínico', opts: ['Diagnóstico', 'Patogénesis', 'Síndrome'] },
+            { q: 'Disminución parcial o total de los signos y síntomas.', a: 'Remisión', opts: ['Recaída', 'Complicación', 'Mortalidad'] },
+            { q: 'Reaparición de una enfermedad tras un periodo de remisión.', a: 'Recaída', opts: ['Remisión', 'Recuperación', 'Pronóstico'] },
+            { q: 'Etapa avanzada de una enfermedad sin posible curación.', a: 'Estado terminal', opts: ['Curso agudo', 'Complicación', 'Recaída'] },
+            { q: 'Número de muertes causadas por una enfermedad.', a: 'Mortalidad', opts: ['Morbidez', 'Incidencia', 'Prevalencia'] },
+            { q: 'Frecuencia de individuos que padecen una enfermedad.', a: 'Morbidez', opts: ['Mortalidad', 'Letalidad', 'Etiología'] },
+            { q: 'Indicador biológico medible que refleja un proceso.', a: 'Biomarcador', opts: ['Síntoma', 'Signo', 'Síndrome'] },
+            { q: 'Conjunto de signos y síntomas que forman un patrón.', a: 'Síndrome', opts: ['Lesión', 'Diagnóstico', 'Etiología'] },
+            { q: 'Signo específico que indica una enfermedad particular.', a: 'Patognomónico', opts: ['General', 'Sistémico', 'Idiopático'] },
+            { q: 'Enfermedad de corta duración y rápida aparición.', a: 'Agudo', opts: ['Crónico', 'Subagudo', 'Recurrente'] },
+            { q: 'Enfermedad que se desarrolla lentamente y persiste.', a: 'Crónico', opts: ['Agudo', 'Terminal', 'Congénito'] },
+            { q: 'Percepción subjetiva de un cambio en la salud.', a: 'Síntoma', opts: ['Signo', 'Lesión', 'Biomarcador'] },
+            { q: 'Manifestación objetiva y medible de un estado patológico.', a: 'Signo', opts: ['Síntoma', 'Queja', 'Sensación'] },
+            { q: 'Número de casos nuevos de una enfermedad en un período.', a: 'Incidencia', opts: ['Prevalencia', 'Morbidez', 'Mortalidad'] },
+            { q: 'Número total de casos de una enfermedad en un momento dado.', a: 'Prevalencia', opts: ['Incidencia', 'Tasa de ataque', 'Riesgo'] },
+            { q: 'Disminución del tamaño de una célula, tejido u órgano.', a: 'Atrofia', opts: ['Hipertrofia', 'Hiperplasia', 'Metaplasia'] },
+            { q: 'Aumento del tamaño de las células.', a: 'Hipertrofia', opts: ['Atrofia', 'Hiperplasia', 'Displasia'] },
+            { q: 'Aumento del número de células.', a: 'Hiperplasia', opts: ['Hipertrofia', 'Metaplasia', 'Atrofia'] },
+            { q: 'Cambio reversible de un tipo celular por otro.', a: 'Metaplasia', opts: ['Displasia', 'Anaplasia', 'Hiperplasia'] },
+            { q: 'Crecimiento desordenado de células.', a: 'Displasia', opts: ['Metaplasia', 'Hipertrofia', 'Neoplasia'] },
+            { q: 'Muerte celular patológica por lesión.', a: 'Necrosis', opts: ['Apoptosis', 'Atrofia', 'Autofagia'] },
+            { q: 'Muerte celular programada, fisiológica.', a: 'Apoptosis', opts: ['Necrosis', 'Displasia', 'Inflamación'] },
+            { q: 'Enfermedad de origen desconocido.', a: 'Idiopática', opts: ['Iatrogénica', 'Nosocomial', 'Congénita'] },
+            { q: 'Enfermedad causada por un tratamiento médico.', a: 'Iatrogénica', opts: ['Idiopática', 'Genética', 'Autoinmune'] },
+            { q: 'Infección adquirida en un hospital.', a: 'Nosocomial', opts: ['Comunitaria', 'Oportunista', 'Zoonótica'] },
+            { q: 'Falta de oxígeno en los tejidos.', a: 'Hipoxia', opts: ['Isquemia', 'Anoxia', 'Infarto'] },
+            { q: 'Cese total del flujo sanguíneo a un tejido.', a: 'Isquemia', opts: ['Hipoxia', 'Trombosis', 'Embolia'] },
+            { q: 'Muerte de tejido por falta de irrigación sanguínea.', a: 'Infarto', opts: ['Necrosis', 'Gangrena', 'Aneurisma'] },
+            { q: 'Formación de un coágulo en un vaso sanguíneo.', a: 'Trombosis', opts: ['Embolia', 'Ateroesclerosis', 'Hemorragia'] },
+            { q: 'Obstrucción de un vaso por un cuerpo extraño (émbolo).', a: 'Embolia', opts: ['Trombosis', 'Estenosis', 'Infarto'] },
+            { q: 'Acumulación anormal de líquido en el espacio intersticial.', a: 'Edema', opts: ['Ascitis', 'Anasarca', 'Hidropesía'] },
+            { q: 'Edema generalizado en todo el cuerpo.', a: 'Anasarca', opts: ['Edema localizado', 'Ascitis', 'Linfedema'] },
+            { q: 'Pérdida de diferenciación celular en tumores malignos.', a: 'Anaplasia', opts: ['Displasia', 'Metaplasia', 'Neoplasia'] },
+            { q: 'Término general para "nuevo crecimiento", usualmente un tumor.', a: 'Neoplasia', opts: ['Hiperplasia', 'Cáncer', 'Anaplasia'] },
+            { q: 'Tumor que no invade tejidos adyacentes.', a: 'Benigno', opts: ['Maligno', 'Metastásico', 'In situ'] },
+            { q: 'Tumor capaz de invadir y propagarse (metástasis).', a: 'Maligno', opts: ['Benigno', 'Quiste', 'Pólipo'] },
+            { q: 'Propagación de células cancerosas a sitios distantes.', a: 'Metástasis', opts: ['Invasión local', 'Angiogénesis', 'Carcinogénesis'] },
+            { q: 'Proceso de formación de nuevos vasos sanguíneos.', a: 'Angiogénesis', opts: ['Vasculitis', 'Ateroesclerosis', 'Trombosis'] },
+            { q: 'Acumulación de pus en una cavidad.', a: 'Absceso', opts: ['Flemón', 'Úlcera', 'Fístula'] },
+            { q: 'Inflamación difusa del tejido conectivo.', a: 'Flemón', opts: ['Absceso', 'Erisipela', 'Celulitis'] },
+            { q: 'Respuesta protectora del cuerpo a una lesión.', a: 'Inflamación', opts: ['Infección', 'Inmunidad', 'Reparación'] },
+            { q: 'Presencia y multiplicación de microorganismos patógenos.', a: 'Infección', opts: ['Inflamación', 'Colonización', 'Sepsis'] },
+            { q: 'Respuesta sistémica y desregulada a una infección.', a: 'Sepsis', opts: ['Bacteriemia', 'Fiebre', 'Leucocitosis'] },
+            { q: 'Dilatación anormal de una arteria.', a: 'Aneurisma', opts: ['Estenosis', 'Várices', 'Ateroesclerosis'] },
+            { q: 'Estrechamiento de un conducto o vaso.', a: 'Estenosis', opts: ['Oclusión', 'Aneurisma', 'Dilatación'] },
+            { q: 'Presencia de bacterias en la sangre.', a: 'Bacteriemia', opts: ['Sepsis', 'Viremia', 'Fungemia'] },
+            { q: 'Aumento del nivel de potasio en sangre.', a: 'Hiperkalemia', opts: ['Hipokalemia', 'Hipernatremia', 'Hipocalcemia'] },
+            { q: 'Disminución del nivel de sodio en sangre.', a: 'Hiponatremia', opts: ['Hipernatremia', 'Hipokalemia', 'Hipercalcemia'] },
+            { q: 'Aumento del nivel de glucosa en sangre.', a: 'Hiperglucemia', opts: ['Hipoglucemia', 'Glucosuria', 'Diabetes'] },
+            { q: 'Coloración azulada de la piel por falta de oxígeno.', a: 'Cianosis', opts: ['Palidez', 'Ictericia', 'Eritema'] },
+            { q: 'Coloración amarillenta de piel y mucosas por bilirrubina.', a: 'Ictericia', opts: ['Carotenemia', 'Palidez', 'Cianosis'] },
+            { q: 'Enrojecimiento de la piel por vasodilatación.', a: 'Eritema', opts: ['Equimosis', 'Petequia', 'Púrpura'] },
+            { q: 'Aumento del número de plaquetas.', a: 'Trombocitosis', opts: ['Trombocitopenia', 'Leucocitosis', 'Anemia'] },
+            { q: 'Disminución del número de glóbulos rojos.', a: 'Anemia', opts: ['Policitemia', 'Leucopenia', 'Eritrocitosis'] },
+            { q: 'Tipo de necrosis con aspecto de "queso".', a: 'Caseosa', opts: ['Coagulativa', 'Licuefactiva', 'Grasa'] },
+            { q: 'Necrosis típica por isquemia (excepto en cerebro).', a: 'Coagulativa', opts: ['Licuefactiva', 'Caseosa', 'Fibrinoide'] },
+            { q: 'Necrosis que resulta en una masa líquida viscosa.', a: 'Licuefactiva', opts: ['Coagulativa', 'Grasa', 'Caseosa'] },
+            { q: 'Reacción inmunitaria contra los propios tejidos.', a: 'Autoinmunidad', opts: ['Alergia', 'Inmunodeficiencia', 'Hipersensibilidad'] },
+            { q: 'Enfermedad presente desde el nacimiento.', a: 'Congénita', opts: ['Hereditaria', 'Genética', 'Adquirida'] },
+            { q: 'Enfermedad causada por una alteración en el ADN.', a: 'Genética', opts: ['Congénita', 'Familiar', 'Crónica'] },
+            { q: 'Aumento de la frecuencia respiratoria.', a: 'Taquipnea', opts: ['Bradipnea', 'Disnea', 'Apnea'] },
+            { q: 'Disminución de la frecuencia cardíaca.', a: 'Bradicardia', opts: ['Taquicardia', 'Arritmia', 'Palpitación'] },
+            { q: 'Acumulación de líquido en la cavidad peritoneal.', a: 'Ascitis', opts: ['Edema', 'Derrame pleural', 'Hidrocefalia'] },
+            { q: 'Aumento del tamaño del hígado.', a: 'Hepatomegalia', opts: ['Esplenomegalia', 'Hepatitis', 'Cirrosis'] },
+            { q: 'Aumento del tamaño del bazo.', a: 'Esplenomegalia', opts: ['Hepatomegalia', 'Linfadenopatía', 'Mononucleosis'] },
+            { q: 'Aumento del tamaño de los ganglios linfáticos.', a: 'Linfadenopatía', opts: ['Linfoma', 'Linfedema', 'Esplenomegalia'] },
+            { q: 'Puntos rojos pequeños en la piel por hemorragia.', a: 'Petequias', opts: ['Equimosis', 'Púrpura', 'Eritema'] },
+            { q: 'Moretón, una hemorragia subcutánea más grande.', a: 'Equimosis', opts: ['Petequias', 'Hematoma', 'Púrpura'] },
+            { q: 'Inflamación de las articulaciones.', a: 'Artritis', opts: ['Artrosis', 'Artralgia', 'Bursitis'] },
+            { q: 'Dolor en las articulaciones sin inflamación.', a: 'Artralgia', opts: ['Artritis', 'Mialgia', 'Fibromialgia'] },
+            { q: 'Dolor muscular.', a: 'Mialgia', opts: ['Artralgia', 'Miositis', 'Rabdomiólisis'] },
+            { q: 'Aumento patológico de la sed.', a: 'Polidipsia', opts: ['Polifagia', 'Poliuria', 'Anorexia'] },
+            { q: 'Aumento patológico del apetito.', a: 'Polifagia', opts: ['Polidipsia', 'Bulimia', 'Hiperorexia'] },
+            { q: 'Producción anormalmente grande de orina.', a: 'Poliuria', opts: ['Anuria', 'Oliguria', 'Disuria'] },
+            { q: 'Ausencia de producción de orina.', a: 'Anuria', opts: ['Oliguria', 'Poliuria', 'Hematuria'] },
+            { q: 'Disminución de la producción de orina.', a: 'Oliguria', opts: ['Anuria', 'Poliuria', 'Nicturia'] },
+            { q: 'Dificultad o dolor al orinar.', a: 'Disuria', opts: ['Polaquiuria', 'Tenesmo vesical', 'Urgencia'] },
+            { q: 'Presencia de sangre en la orina.', a: 'Hematuria', opts: ['Proteinuria', 'Glucosuria', 'Piuria'] },
+            { q: 'Presencia de proteínas en la orina.', a: 'Proteinuria', opts: ['Hematuria', 'Cetonuria', 'Albuminuria'] },
+            { q: 'Expulsión de sangre por la boca proveniente de los pulmones.', a: 'Hemoptisis', opts: ['Hematemesis', 'Epistaxis', 'Vómito'] },
+            { q: 'Vómito con sangre.', a: 'Hematemesis', opts: ['Hemoptisis', 'Melena', 'Hematoquecia'] },
+            { q: 'Heces negras por sangre digerida.', a: 'Melena', opts: ['Hematoquecia', 'Rectorragia', 'Hematemesis'] },
+            { q: 'Dificultad para tragar.', a: 'Disfagia', opts: ['Odinofagia', 'Acalasia', 'Pirosis'] },
+            { q: 'Dolor al tragar.', a: 'Odinofagia', opts: ['Disfagia', 'Faringitis', 'Esofagitis'] },
+            { q: 'Protrusión de los globos oculares.', a: 'Exoftalmos', opts: ['Enoftalmos', 'Estrabismo', 'Nistagmo'] },
+            { q: 'Movimiento involuntario y rápido de los ojos.', a: 'Nistagmo', opts: ['Ptosis', 'Midriasis', 'Miosis'] },
+            { q: 'Contracción de la pupila.', a: 'Miosis', opts: ['Midriasis', 'Anisocoria', 'Isocoria'] },
+            { q: 'Dilatación de la pupila.', a: 'Midriasis', opts: ['Miosis', 'Fotofobia', 'Diplopía'] },
+            { q: 'Desigualdad en el tamaño de las pupilas.', a: 'Anisocoria', opts: ['Isocoria', 'Midriasis', 'Miosis'] },
+            { q: 'Pérdida de la capacidad para hablar o comprender el lenguaje.', a: 'Afasia', opts: ['Disartria', 'Apraxia', 'Agnosia'] },
+            { q: 'Dificultad para articular palabras.', a: 'Disartria', opts: ['Afasia', 'Disfonía', 'Anartria'] },
+            { q: 'Incoordinación de los movimientos voluntarios.', a: 'Ataxia', opts: ['Apraxia', 'Temblor', 'Distonía'] },
+            { q: 'Sonido agudo durante la inspiración por obstrucción laríngea.', a: 'Estridor', opts: ['Sibilancia', 'Roncus', 'Estertor'] },
+            { q: 'Sonido musical y agudo, principalmente en espiración.', a: 'Sibilancia', opts: ['Roncus', 'Crepitante', 'Estridor'] },
+            { q: 'Sonido grave y continuo, como un ronquido.', a: 'Roncus', opts: ['Sibilancia', 'Estridor', 'Frotes pleurales'] },
+            { q: 'Sonidos burbujeantes o chasqueantes en los pulmones.', a: 'Crepitantes', opts: ['Sibilancias', 'Roncus', 'Estertores'] },
+            { q: 'Aumento de la concentración de CO2 en sangre.', a: 'Hipercapnia', opts: ['Hipocapnia', 'Hipoxemia', 'Hiperventilación'] }
+        ];
+
+        let questionsForRound = []; let shuffledTerms = []; let termIndex = 0;
+
+        // --- Estado del Juego ---
+        let score = 0, lives = 5, fallingWordEl = null, currentWordData = null, currentPlayer = { group: '', name: '' };
+        let currentLevel = 1, currentQuestionIndex = 0, questionTimer;
+
+        // --- Lógica del Juego ---
+        function startGame() {
+            startScreen.classList.add('hidden'); mainGame.classList.remove('hidden');
+            score = 0; lives = 5; currentLevel = 1;
+            shuffledTerms = [...terms].sort(() => Math.random() - 0.5);
+            termIndex = 0;
+            allQuestions.sort(() => Math.random() - 0.5);
+            questionsForRound = allQuestions.slice(0, 10);
+            showLevel(1);
+        }
+
+        function showLevel(level) {
+            currentLevel = level;
+            level1.classList.add('hidden'); level2.classList.add('hidden'); level3.classList.add('hidden');
+            if (level === 1) {
+                level1.classList.remove('hidden');
+                updateUI(); spawnWord();
+            } else if (level === 2) {
+                level2.classList.remove('hidden');
+                currentQuestionIndex = 0;
+                displayQuestion();
+            } else if (level === 3) {
+                level3.classList.remove('hidden');
+                currentQuestionIndex = 5;
+                startTargetLevel();
+            }
+        }
+
+        function updateUI() {
+            const heartSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path d="M12 4.248c-3.148-5.402-12-3.825-12 2.942 0 4.661 5.571 9.427 12 15.808 6.43-6.381 12-11.147 12-15.808 0-6.792-8.875-8.306-12-2.942z"/></svg>`;
+            const heartsHTML = Array(lives).fill(heartSVG).join('');
+            scoreDisplay.textContent = score; livesDisplay.innerHTML = heartsHTML;
+            scoreDisplayL2.textContent = score; livesDisplayL2.innerHTML = heartsHTML;
+            scoreDisplayL3.textContent = score; livesDisplayL3.innerHTML = heartsHTML;
+        }
+
+        function gameOver() {
+            if (questionTimer) clearInterval(questionTimer);
+            stopTargetLevel();
+            mainGame.classList.add('hidden'); gameOverScreen.classList.remove('hidden');
+            finalScoreDisplay.textContent = score;
+            playerInfo.textContent = `Jugador: ${currentPlayer.name} (Grupo ${currentPlayer.group})`;
+            let stars = "Sin créditos", starCount = 0;
+            switch (lives) {
+                case 5: stars = "★★★★★★★★★★ (10)"; starCount = 10; break;
+                case 4: stars = "★★★★★★★★ (8)"; starCount = 8; break;
+                case 3: stars = "★★★★★★ (6)"; starCount = 6; break;
+                case 2: stars = "★★★★ (4)"; starCount = 4; break;
+                case 1: stars = "★★ (2)"; starCount = 2; break;
+            }
+            levelAchievedDisplay.textContent = `${lives} Vidas Restantes`;
+            starsAwardedDisplay.innerHTML = starCount > 0 ? stars.replace(/★/g, '<span class="star">★</span>') : stars;
+            saveScore(currentPlayer.group, currentPlayer.name, score, starCount);
+        }
+
+        // --- Nivel 1 ---
+        function spawnWord() {
+            if (fallingWordEl) return;
+            if (termIndex >= shuffledTerms.length) {
+                termIndex = 0;
+                shuffledTerms.sort(() => Math.random() - 0.5);
+            }
+            currentWordData = shuffledTerms[termIndex];
+            termIndex++;
+            fallingWordEl = document.createElement('div');
+            fallingWordEl.textContent = currentWordData.word;
+            fallingWordEl.className = 'falling-word';
+            const duration = 6.5 - (score / 100); // Faster fall
+            fallingWordEl.style.animationDuration = `${Math.max(3, duration)}s`;
+            const containerWidth = gameContainer.clientWidth;
+            const wordWidth = currentWordData.word.length * 18;
+            const maxLeft = containerWidth - wordWidth - 10;
+            fallingWordEl.style.left = `${Math.random() * Math.max(0, maxLeft)}px`;
+            gameContainer.appendChild(fallingWordEl);
+            fallingWordEl.addEventListener('animationend', () => handleAnswer(null, true));
+        }
+
+        function handleAnswer(playerChoice, isMiss = false) {
+            if (!fallingWordEl && !isMiss) return;
+            const isCorrect = playerChoice === currentWordData.type;
+            if(fallingWordEl) fallingWordEl.remove(); 
+            fallingWordEl = null;
+            if (isCorrect) {
+                score += 10;
+                gameContainer.classList.add('flash-correct');
+                setTimeout(() => gameContainer.classList.remove('flash-correct'), 300);
+                if (score >= 100) { showLevel(2); return; }
+            } else {
+                lives--;
+                gameContainer.classList.add('flash-incorrect');
+                setTimeout(() => gameContainer.classList.remove('flash-incorrect'), 300);
+            }
+            updateUI();
+            if (lives <= 0) gameOver(); else setTimeout(spawnWord, 200);
+        }
+
+        // --- Nivel 2 ---
+        function displayQuestion() {
+            if (currentQuestionIndex >= 5) {
+                showLevel(3); return;
+            }
+            const qData = questionsForRound[currentQuestionIndex];
+            questionText.textContent = qData.q; optionsContainer.innerHTML = '';
+            const options = [...qData.opts, qData.a].sort(() => Math.random() - 0.5);
+            options.forEach(opt => {
+                const button = document.createElement('button');
+                button.textContent = opt; button.className = 'btn-arcade';
+                button.onclick = () => handleQuestionAnswer(opt === qData.a);
+                optionsContainer.appendChild(button);
+            });
+            updateUI();
+            
+            if (questionTimer) clearInterval(questionTimer);
+            let timeLeft = 10;
+            timerL2.textContent = `Tiempo: ${timeLeft}`;
+            questionTimer = setInterval(() => {
+                timeLeft--;
+                timerL2.textContent = `Tiempo: ${timeLeft}`;
+                if (timeLeft <= 0) {
+                    handleQuestionAnswer(false);
+                }
+            }, 1000);
+        }
+        
+        function handleQuestionAnswer(isCorrect) {
+            if (questionTimer) clearInterval(questionTimer);
+            if (isCorrect) {
+                score += 25; level2.classList.add('flash-correct');
+                setTimeout(() => level2.classList.remove('flash-correct'), 300);
+            } else {
+                lives--; level2.classList.add('flash-incorrect');
+                setTimeout(() => level2.classList.remove('flash-incorrect'), 300);
+            }
+            if (lives <= 0) { gameOver(); return; }
+            currentQuestionIndex++;
+            setTimeout(displayQuestion, 500);
+        }
+        
+        // --- Nivel 3: Galería de Tiro ---
+        let level3Timeout;
+        let correctTargetMissed = true;
+
+        function startTargetLevel() {
+            displayTargetQuestion();
+        }
+
+        function stopTargetLevel() {
+             targetContainer.innerHTML = '';
+             clearTimeout(level3Timeout);
+             if (questionTimer) clearInterval(questionTimer);
+        }
+
+        function displayTargetQuestion() {
+            if (currentQuestionIndex >= 10 || currentQuestionIndex >= questionsForRound.length) {
+                const winMessage = document.createElement('h2');
+                winMessage.textContent = "¡HAS SUPERADO EL RETO!";
+                winMessage.className = "text-3xl text-green-400";
+                gameOverScreen.insertBefore(winMessage, gameOverScreen.firstChild);
+                gameOver(); return;
+            }
+            targetContainer.innerHTML = '';
+            correctTargetMissed = true;
+            
+            const qData = questionsForRound[currentQuestionIndex];
+            targetQuestion.textContent = qData.q;
+            const options = [...qData.opts, qData.a].sort(() => Math.random() - 0.5);
+
+            options.forEach((opt, index) => {
+                const target = document.createElement('div');
+                target.textContent = opt;
+                target.className = 'target';
+                const isCorrect = opt === qData.a;
+                
+                const duration = 7 + Math.random() * 4; // Slower speed: 7-11 seconds
+                target.style.animationDuration = `${duration}s`;
+                target.style.top = `${10 + index * 20}%`;
+                
+                target.addEventListener('click', () => handleTargetClick(isCorrect));
+                
+                if(isCorrect) {
+                    target.addEventListener('animationend', () => {
+                        if(correctTargetMissed) {
+                           handleTargetClick(false, true);
+                        }
+                    });
+                }
+                targetContainer.appendChild(target);
+            });
+            updateUI();
+
+            if (questionTimer) clearInterval(questionTimer);
+            let timeLeft = 10;
+            timerL3.textContent = `Tiempo: ${timeLeft}`;
+            questionTimer = setInterval(() => {
+                timeLeft--;
+                timerL3.textContent = `Tiempo: ${timeLeft}`;
+                if (timeLeft <= 0) {
+                    handleTargetClick(false, true);
+                }
+            }, 1000);
+        }
+
+        function handleTargetClick(isCorrect, isMiss = false) {
+            if (!correctTargetMissed) return;
+            if (questionTimer) clearInterval(questionTimer);
+
+            if (isCorrect) {
+                correctTargetMissed = false;
+                score += 50;
+                level3.classList.add('flash-correct');
+                setTimeout(() => level3.classList.remove('flash-correct'), 300);
+                updateUI();
+                currentQuestionIndex++;
+                level3Timeout = setTimeout(displayTargetQuestion, 1000);
+            } else {
+                 if (isMiss) {
+                    correctTargetMissed = false;
+                 }
+                lives--;
+                level3.classList.add('flash-incorrect');
+                setTimeout(() => level3.classList.remove('flash-incorrect'), 300);
+                updateUI();
+                if (lives <= 0) { gameOver(); return; }
+                
+                targetContainer.innerHTML = '';
+                currentQuestionIndex++;
+                level3Timeout = setTimeout(displayTargetQuestion, 1000);
+            }
+        }
+        
+        // --- Gestión de Reportes ---
+        function saveScore(group, name, finalScore, stars) {
+            const scores = JSON.parse(localStorage.getItem('patologiaScores')) || [];
+            scores.push({ group, name, score: finalScore, stars, date: new Date().toLocaleString() });
+            localStorage.setItem('patologiaScores', JSON.stringify(scores));
+        }
+
+        function displayReport() {
+            const scores = JSON.parse(localStorage.getItem('patologiaScores')) || [];
+            
+            let reportHeader = `
+                <div class="text-center mb-4">
+                    <h3 class="text-2xl">Actividad: Clasificador de Patología ARCADE</h3>
+                    <h4 class="text-lg text-cyan-300">Fecha de Reporte: ${new Date().toLocaleString()}</h4>
+                </div>
+            `;
+
+            if (scores.length === 0) {
+                reportContent.innerHTML = reportHeader + "<p>Aún no hay puntuaciones guardadas.</p>";
+                return;
+            }
+            let tableHTML = `<table class="report-table"><thead><tr><th>Grupo</th><th>Alumno</th><th>Puntuación</th><th>Estrellas</th><th>Fecha de Juego</th><th>Acciones</th></tr></thead><tbody>`;
+            scores.forEach(s => {
+                tableHTML += `<tr><td>${s.group}</td><td>${s.name}</td><td>${s.score}</td><td>${s.stars}</td><td>${s.date}</td><td><button class="delete-btn" data-id="${s.date}">[X]</button></td></tr>`;
+            });
+            tableHTML += `</tbody></table>`;
+            reportContent.innerHTML = reportHeader + tableHTML;
+        }
+
+        function downloadReportAsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const scores = JSON.parse(localStorage.getItem('patologiaScores')) || [];
+
+            // Add titles
+            doc.setFontSize(18);
+            doc.text("Reporte de Puntuaciones", 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text("Actividad: Clasificador de Patologia ARCADE", 14, 30);
+            doc.text(`Fecha de Reporte: ${new Date().toLocaleString()}`, 14, 36);
+            doc.setTextColor(0);
+
+            if (scores.length === 0) {
+                doc.setFontSize(12);
+                doc.text("Aun no hay puntuaciones guardadas.", 14, 50);
+                doc.save('Reporte-Puntuaciones.pdf');
+                return;
+            }
+
+            // Manual Table Drawing
+            const startX = 14;
+            let y = 45;
+            const cellPadding = 2;
+            const lineHeight = 8;
+            const colWidths = [15, 80, 20, 20, 45];
+            const headers = ['Grupo', 'Alumno', 'Puntaje', 'Estrellas', 'Fecha'];
+
+            // Draw Header
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setFillColor(230, 230, 230); // Light grey background
+            doc.rect(startX, y, colWidths.reduce((a, b) => a + b, 0), lineHeight, 'F');
+            let currentX = startX;
+            headers.forEach((header, i) => {
+                doc.text(header, currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                currentX += colWidths[i];
+            });
+            y += lineHeight;
+
+            // Draw Body
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            scores.forEach((row, rowIndex) => {
+                const nameLines = doc.splitTextToSize(row.name, colWidths[1] - (cellPadding * 2));
+                const rowHeight = lineHeight * nameLines.length;
+
+                if (y + rowHeight > 280) { // Check for page break
+                    doc.addPage();
+                    y = 20;
+                    // Redraw header on new page
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'bold');
+                    doc.setFillColor(230, 230, 230);
+                    doc.rect(startX, y, colWidths.reduce((a, b) => a + b, 0), lineHeight, 'F');
+                    currentX = startX;
+                    headers.forEach((header, i) => {
+                        doc.text(header, currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                        currentX += colWidths[i];
+                    });
+                    y += lineHeight;
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                }
+
+                currentX = startX;
+                // Draw cells
+                doc.text(row.group, currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                currentX += colWidths[0];
+                doc.text(nameLines, currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                currentX += colWidths[1];
+                doc.text(String(row.score), currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                currentX += colWidths[2];
+                doc.text(String(row.stars), currentX + cellPadding, y + lineHeight - cellPadding - 1);
+                currentX += colWidths[3];
+                doc.text(row.date, currentX + cellPadding, y + lineHeight - cellPadding - 1);
+
+                y += rowHeight;
+            });
+
+            doc.save('Reporte-Puntuaciones.pdf');
+        }
+
+        // --- Event Listeners ---
+        groupSelect.addEventListener('change', (e) => {
+            const group = e.target.value; studentSelect.innerHTML = '<option value="">-- SELECCIONA ALUMNO --</option>';
+            studentSelect.disabled = !group;
+            if (group) studentData[group].forEach(s => studentSelect.add(new Option(s, s)));
+            startButton.disabled = true;
+        });
+        studentSelect.addEventListener('change', (e) => { startButton.disabled = !e.target.value; });
+        startButton.addEventListener('click', () => { currentPlayer.group = groupSelect.value; currentPlayer.name = studentSelect.value; startGame(); });
+        restartButton.addEventListener('click', () => {
+            const winMsg = gameOverScreen.querySelector("h2.text-green-400");
+            if (winMsg) winMsg.remove();
+            gameOverScreen.classList.add('hidden'); startScreen.classList.remove('hidden');
+            groupSelect.value = ""; studentSelect.innerHTML = '<option value="">-- SELECCIONA ALUMNO --</option>';
+            studentSelect.disabled = true; startButton.disabled = true;
+        });
+        reportButton.addEventListener('click', () => { gameOverScreen.classList.add('hidden'); reportScreen.classList.remove('hidden'); displayReport(); });
+        backToStartButton.addEventListener('click', () => { reportScreen.classList.add('hidden'); startScreen.classList.remove('hidden'); });
+        downloadReportButton.addEventListener('click', downloadReportAsPDF);
+        zoneSintoma.addEventListener('click', () => handleAnswer('sintoma'));
+        zoneSigno.addEventListener('click', () => handleAnswer('signo'));
+
+        reportContent.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const idToDelete = e.target.dataset.id;
+                let scores = JSON.parse(localStorage.getItem('patologiaScores')) || [];
+                scores = scores.filter(score => score.date !== idToDelete);
+                localStorage.setItem('patologiaScores', JSON.stringify(scores));
+                displayReport();
+            }
+        });
+
+        deleteAllButton.addEventListener('click', () => {
+            if (deleteAllButton.textContent === '¿CONFIRMAR?') {
+                localStorage.removeItem('patologiaScores');
+                displayReport();
+                deleteAllButton.textContent = 'Borrar Todo';
+                deleteAllButton.classList.remove('!bg-yellow-400');
+            } else {
+                deleteAllButton.textContent = '¿CONFIRMAR?';
+                deleteAllButton.classList.add('!bg-yellow-400', '!text-black');
+                setTimeout(() => {
+                    deleteAllButton.textContent = 'Borrar Todo';
+                    deleteAllButton.classList.remove('!bg-yellow-400', '!text-black');
+                }, 3000);
+            }
+        });
+
+        downloadPdfButton.addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const title = "Resumen de Patologia Clinica";
+            const content = `
+Conceptos Clave de Patologia Clinica
+
+Sintoma vs. Signo
+- Sintoma: Percepcion SUBJETIVA que solo el paciente puede comunicar (Ej: dolor, fatiga, nausea).
+- Signo: Manifestacion OBJETIVA, medible y observable por un profesional (Ej: fiebre, eritema, taquicardia).
+
+Otros Terminos Fundamentales
+- Sindrome: Conjunto de signos y sintomas que forman un patron clinico reconocible.
+- Lesion: Dano estructural observable en celulas, tejidos u organos.
+- Etiologia: Causa o conjunto de causas de una enfermedad.
+- Patogenesis: Mecanismos biologicos por los cuales se desarrolla una enfermedad.
+- Manifestacion Clinica: Conjunto global de signos y sintomas de un paciente.
+- Diagnostico: Identificacion precisa de una enfermedad.
+- Pronostico: Prediccion sobre la evolucion probable de una enfermedad.
+- Complicacion: Problema secundario que surge durante el curso de una enfermedad.
+- Curso Clinico: Evolucion de una enfermedad en el tiempo (agudo, cronico).
+- Remision: Disminucion parcial o total de los signos y sintomas.
+- Recaida: Reaparicion de una enfermedad tras un periodo de remision.
+- Estado Terminal: Etapa avanzada de una enfermedad donde la curacion no es posible.
+
+Adaptacion Celular
+- Atrofia: Disminucion del tamano celular.
+- Hipertrofia: Aumento del tamano celular.
+- Hiperplasia: Aumento del numero de celulas.
+- Metaplasia: Cambio reversible de un tipo celular por otro.
+- Displasia: Crecimiento celular desordenado, a menudo pre-canceroso.
+
+Muerte Celular
+- Necrosis: Muerte celular por lesion externa, causa inflamacion.
+- Apoptosis: Muerte celular programada, un proceso ordenado y sin inflamacion.
+
+Epidemiologia
+- Mortalidad: Tasa de muertes causadas por una enfermedad.
+- Morbidez: Frecuencia de una enfermedad en una poblacion.
+- Incidencia: Numero de CASOS NUEVOS en un periodo.
+- Prevalencia: Numero TOTAL de casos (nuevos y existentes) en un momento.
+            `;
+
+            doc.setFontSize(18);
+            doc.text(title, 10, 20);
+            doc.setFontSize(10);
+            const lines = doc.splitTextToSize(content, 180);
+            doc.text(lines, 10, 30);
+            
+            doc.save('Resumen-Patologia-Clinica.pdf');
+        });
+    </script>
+</body>
+</html>
+
