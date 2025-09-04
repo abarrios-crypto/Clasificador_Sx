@@ -69,6 +69,7 @@
             text-shadow: 2px 2px #ff00ff;
             will-change: top;
             animation: fall linear;
+            visibility: hidden; /* Oculto hasta que se mida y posicione */
         }
         @keyframes fall {
             from { top: -50px; }
@@ -165,7 +166,7 @@
         <h1 class="text-3xl md:text-5xl xl:text-6xl">Clasificador<br>de Patología ARCADE</h1>
         <div class="space-y-4">
             <select id="group-select" class="select-arcade md:text-lg">
-                <option value="">-- SELECCIONA GRUPO --</option>
+                <option value="">-- SELECCIONA GRPO --</option>
                 <option value="5-1">Grupo 5-1</option>
                 <option value="5-2">Grupo 5-2</option>
                 <option value="5-3">Grupo 5-3</option>
@@ -231,7 +232,7 @@
         <div class="flex flex-wrap justify-center gap-4">
             <button id="restart-button" class="btn-arcade text-xl">Reiniciar</button>
             <button id="report-button" class="btn-arcade text-xl">Ver Reporte</button>
-            <button id="download-pdf-button" class="btn-arcade text-xl !bg-cyan-500 !border-yellow-300 !text-black !text-shadow-none">Descargar PDF</button>
+            <button id="download-pdf-button" class="btn-arcade text-xl !bg-cyan-500 !border-yellow-300 !text-black !text-shadow-none">Descargar Guía</button>
         </div>
     </div>
     
@@ -242,6 +243,7 @@
         <div class="flex flex-wrap justify-center gap-4 mt-6 no-print">
             <button id="back-to-start-button" class="btn-arcade text-lg">Volver al Inicio</button>
             <button id="download-report-button" class="btn-arcade text-lg">Descargar Reporte</button>
+            <button id="download-guide-from-report-button" class="btn-arcade text-lg !bg-cyan-500 !border-yellow-300 !text-black !text-shadow-none">Descargar Guía</button>
             <button id="delete-all-button" class="btn-arcade text-lg !bg-red-600 !border-yellow-300">Borrar Todo</button>
         </div>
     </div>
@@ -249,11 +251,15 @@
 
     <script>
         // --- Alumnos ---
-        const studentData = { "5-1": [ "AGUILAR GONZÁLEZ ALEXIS EMMANUEL", "ARMENTA FÉLIX GERMÁN", "ARREDONDO AGUILAR LITZY ESTEFANIA", "ARREDONDO LÓPEZ NELLY ALEJANDRA", "CUADRAS LUGO DULCE MAYTE", "CUADRAS MORENO CHRISTOPHER IRÁN", "ESCUDERO SALCEDO ANA BELÉN", "ESPINOZA LEYVA CINDY BELÉN", "GAMBOA LUGO KATHIA ISABEL", "GARNICA NUÑEZ ANA CARMEN", "GERARDO BOJÓRQUEZ METZLI", "GONZALEZ RUBIO ENRIQUE", "GUZMÁN LEÓN FÁTIMA ESTEFANÍA", "HUERTA NIEBLAS NAILEA", "JACOBO ISMERIO ANDRÉS ROGELIO", "LIE ESPINOZA LUIS ROBERTO", "LIZARRAGA SÁNCHEZ CARLOS UVALDO", "LUNA RODRÍGEZ WILLIAMS ALFREDO", "MASCAREÑO MORALES LUIS MARIO", "MENDOZA VILLANUEVA LUIS ENRIQUE", "MONTENEGRO GONZÁLEZ MARÍA JOSÉ", "ONTIVEROS MORALES BYANCA", "PARRA SÁNCHEZ VICTORIA AMAIRANY", "SARABIA CASTRO FRIDA VALERIA", "SEPULVEDA LUGO LUIS CARLOS", "SERRANO GONZÁLEZ MIGUEL ÁNGEL", "URBALEJO VALENZUELA JOKSAN JASSIEL", "ZAVALA JOANNE LORENΝΑ" ], "5-2": [ "ACEVES FERNÁNDEZ ANA VALERIA", "ALANIZ FREGOSO ASHLEY ABISH", "AMBRIZ HERRERA MIGUEL ANGEL", "ARREDONDO FELIX SEBASTIAN", "BARRERA GARCÍA DULCE ALEJANDRA", "CÁRDENAS PEREZ MARIA YOLANDA", "CEBREROS GASTELUM NATALIA", "DOMINGUEZ PALMA MARIANA", "ESEVERRE QUEVEDO KEVIN ALEJANRO", "ESTRADA CRUZ CAMILA AURORA", "FELIZ OBESO ANA KAREN", "LEYVA VIDOVICH HERICK RAEL", "MÁRQUEZ GASTELUM KARIME NATALY", "MENDOZA GARCÍA GISELLE ARELY", "NUÑEZ GALLARDO MARIAN LEYLANI", "URREA LÓPEZ WENDY VIANNEY", "VILLAREAL LÓPEZ ANA MARÍA" ], "5-3": [ "CALDERÓN GARCÍA BRITANNY RUBY", "CASTRO NIEBLA FRANCISCO JAVIER", "CAZAREZ JIMENEZ LORENA JACQUELINE", "HERAS BELTRÁN JOSÉ ÁNGEL", "LUGO BUELNA SEBASTIAN", "PANUSOPULOS LÓPEZ NICKOLAS", "QUINTERO MILLÁN CAROLINA", "ROJAS ESPINOZA MANUEL EDUARDO", "SOMERA MIRANDA ELIZA ALEJANDRA", "VALENZUELA GARCÍA SUSAN GABRIELA", "VALENZUELA RENDÓN MARÍA CAMILA", "ALVARADO ROMERO MARIA FERNANDA", "GUARECA MONJARDIN RAMÓN EDUARDO" ] };
+        const studentData = {
+            "5-1": ["AGUILAR GONZÁLEZ ALEXIS EMMANUEL", "ARMENTA FÉLIX GERMÁN", "ARREDONDO AGUILAR LITZY ESTEFANIA", "ARREDONDO LÓPEZ NELLY ALEJANDRA", "CUADRAS LUGO DULCE MAYTE", "CUADRAS MORENO CHRISTOPHER IRÁN", "ESCUDERO SALCEDO ANA BELÉN", "ESPINOZA LEYVA CINDY BELÉN", "GAMBOA LUGO KATHIA ISABEL", "GARNICA NUÑEZ ANA CARMEN", "GERARDO BOJÓRQUEZ METZLI", "GONZALEZ RUBIO ENRIQUE", "GUZMÁN LEÓN FÁTIMA ESTEFANÍA", "HUERTA NIEBLAS NAILEA", "JACOBO ISMERIO ANDRÉS ROGELIO", "LIE ESPINOZA LUIS ROBERTO", "LIZARRAGA SÁNCHEZ CARLOS UVALDO", "LUNA RODRÍGEZ WILLIAMS ALFREDO", "MASCAREÑO MORALES LUIS MARIO", "MENDOZA VILLANUEVA LUIS ENRIQUE", "MONTENEGRO GONZÁLEZ MARÍA JOSÉ", "ONTIVEROS MORALES BYANCA", "PARRA SÁNCHEZ VICTORIA AMAIRANY", "SARABIA CASTRO FRIDA VALERIA", "SEPULVEDA LUGO LUIS CARLOS", "SERRANO GONZÁLEZ MIGUEL ÁNGEL", "URBALEJO VALENZUELA JOKSAN JASSIEL", "ZAVALA JOANNE LORENΝΑ"],
+            "5-2": ["ACEVES FERNÁNDEZ ANA VALERIA", "ALANIZ FREGOSO ASHLEY ABISH", "AMBRIZ HERRERA MIGUEL ANGEL", "ARREDONDO FELIX SEBASTIAN", "BARRERA GARCÍA DULCE ALEJANDRA", "CÁRDENAS PEREZ MARIA YOLANDA", "CEBREROS GASTELUM NATALIA", "DOMINGUEZ PALMA MARIANA", "ESEVERRE QUEVEDO KEVIN ALEJANDRO", "ESTRADA CRUZ CAMILA AURORA", "FELIZ OBESO ANA KAREN", "LEYVA VIDOVICH HERICK RAEL", "MÁRQUEZ GASTELUM KARIME NATALY", "MENDOZA GARCÍA GISELLE ARELY", "NUÑEZ GALLARDO MARIAN LEYLANI", "URREA LÓPEZ WENDY VIANNEY", "VILLAREAL LÓPEZ ANA MARÍA"],
+            "5-3": ["CALDERÓN GARCÍA BRITANNY RUBY", "CASTRO NIEBLA FRANCISCO JAVIER", "CAZAREZ JIMENEZ LORENA JACQUELINE", "HERAS BELTRÁN JOSÉ ÁNGEL", "LUGO BUELNA SEBASTIAN", "PANUSOPULOS LÓPEZ NICKOLAS", "QUINTERO MILLÁN CAROLINA", "ROJAS ESPINOZA MANUEL EDUARDO", "SOMERA MIRANDA ELIZA ALEJANDRA", "VALENZUELA GARCÍA SUSAN GABRIELA", "VALENZUELA RENDÓN MARÍA CAMILA", "ALVARADO ROMERO MARIA FERNANDA", "GUARECA MONJARDIN RAMÓN EDUARDO"]
+        };
 
         // --- Elementos del DOM ---
         const startScreen = document.getElementById('start-screen'), mainGame = document.getElementById('main-game'), gameOverScreen = document.getElementById('game-over-screen'), reportScreen = document.getElementById('report-screen');
-        const startButton = document.getElementById('start-button'), restartButton = document.getElementById('restart-button'), reportButton = document.getElementById('report-button'), backToStartButton = document.getElementById('back-to-start-button'), downloadReportButton = document.getElementById('download-report-button'), downloadPdfButton = document.getElementById('download-pdf-button'), deleteAllButton = document.getElementById('delete-all-button');
+        const startButton = document.getElementById('start-button'), restartButton = document.getElementById('restart-button'), reportButton = document.getElementById('report-button'), backToStartButton = document.getElementById('back-to-start-button'), downloadReportButton = document.getElementById('download-report-button'), downloadPdfButton = document.getElementById('download-pdf-button'), deleteAllButton = document.getElementById('delete-all-button'), downloadGuideFromReportButton = document.getElementById('download-guide-from-report-button');
         const groupSelect = document.getElementById('group-select'), studentSelect = document.getElementById('student-select'), playerInfo = document.getElementById('player-info'), reportContent = document.getElementById('report-content');
         const level1 = document.getElementById('level-1'), gameContainer = document.getElementById('game-container'), scoreDisplay = document.getElementById('score'), livesDisplay = document.getElementById('lives'), zoneSintoma = document.getElementById('zone-sintoma'), zoneSigno = document.getElementById('zone-signo');
         const level2 = document.getElementById('level-2'), scoreDisplayL2 = document.getElementById('score-l2'), livesDisplayL2 = document.getElementById('lives-l2'), questionText = document.getElementById('question-text'), optionsContainer = document.getElementById('options-container'), timerL2 = document.getElementById('timer-l2');
@@ -515,15 +521,28 @@
             }
             currentWordData = shuffledTerms[termIndex];
             termIndex++;
+
+            // Create and measure the word element before positioning
+            const tempEl = document.createElement('div');
+            tempEl.textContent = currentWordData.word;
+            tempEl.className = 'falling-word';
+            tempEl.style.visibility = 'hidden'; // Keep it invisible for now
+            gameContainer.appendChild(tempEl);
+            const wordWidth = tempEl.offsetWidth;
+            gameContainer.removeChild(tempEl); // Remove the temporary element
+
             fallingWordEl = document.createElement('div');
             fallingWordEl.textContent = currentWordData.word;
             fallingWordEl.className = 'falling-word';
-            const duration = 6.5 - (score / 100); // Faster fall
+            fallingWordEl.style.visibility = 'visible'; // Make it visible
+
+            const duration = 6.5 - (score / 100);
             fallingWordEl.style.animationDuration = `${Math.max(3, duration)}s`;
+            
             const containerWidth = gameContainer.clientWidth;
-            const wordWidth = currentWordData.word.length * 18;
-            const maxLeft = containerWidth - wordWidth - 10;
+            const maxLeft = containerWidth - wordWidth - 10; // 10px padding on the right
             fallingWordEl.style.left = `${Math.random() * Math.max(0, maxLeft)}px`;
+            
             gameContainer.appendChild(fallingWordEl);
             fallingWordEl.addEventListener('animationend', () => handleAnswer(null, true));
         }
@@ -793,6 +812,54 @@
 
             doc.save('Reporte-Puntuaciones.pdf');
         }
+        
+        function generateStudyGuideContent() {
+            let content = "Guia de Repaso: Clasificador de Patologia ARCADE\n\n";
+
+            content += "--- VOCABULARIO (Nivel 1) ---\n\n";
+            terms.forEach(term => {
+                content += `${term.word}: ${term.type}\n`;
+            });
+
+            content += "\n\n--- BANCO DE PREGUNTAS (Niveles 2 y 3) ---\n\n";
+            allQuestions.forEach(qData => {
+                content += `Pregunta: ${qData.q}\n`;
+                content += `Respuesta: ${qData.a}\n\n`;
+            });
+            
+            return content;
+        }
+
+        function downloadStudyGuide() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const title = "Guia de Repaso: Clasificador de Patologia ARCADE";
+            
+            const content = generateStudyGuideContent();
+
+            doc.setFontSize(18);
+            doc.text(title, 10, 20);
+            
+            const lines = doc.splitTextToSize(content, 180); // 180mm margin width
+            
+            let y = 30; // Initial Y position
+            const lineHeight = 7; // Line height
+            const pageHeight = doc.internal.pageSize.height;
+            const margin = 20;
+            doc.setFontSize(9);
+
+            for (let i = 0; i < lines.length; i++) {
+                if (y > pageHeight - margin) { // If we're at the bottom, add a new page
+                    doc.addPage();
+                    y = margin; // Reset Y to top margin
+                }
+                doc.text(lines[i], 10, y);
+                y += lineHeight; // Move to the next line
+            }
+            
+            doc.save('Guia-de-Repaso-Patologia.pdf');
+        }
+
 
         // --- Event Listeners ---
         groupSelect.addEventListener('change', (e) => {
@@ -842,58 +909,8 @@
             }
         });
 
-        downloadPdfButton.addEventListener('click', () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            const title = "Resumen de Patologia Clinica";
-            const content = `
-Conceptos Clave de Patologia Clinica
-
-Sintoma vs. Signo
-- Sintoma: Percepcion SUBJETIVA que solo el paciente puede comunicar (Ej: dolor, fatiga, nausea).
-- Signo: Manifestacion OBJETIVA, medible y observable por un profesional (Ej: fiebre, eritema, taquicardia).
-
-Otros Terminos Fundamentales
-- Sindrome: Conjunto de signos y sintomas que forman un patron clinico reconocible.
-- Lesion: Dano estructural observable en celulas, tejidos u organos.
-- Etiologia: Causa o conjunto de causas de una enfermedad.
-- Patogenesis: Mecanismos biologicos por los cuales se desarrolla una enfermedad.
-- Manifestacion Clinica: Conjunto global de signos y sintomas de un paciente.
-- Diagnostico: Identificacion precisa de una enfermedad.
-- Pronostico: Prediccion sobre la evolucion probable de una enfermedad.
-- Complicacion: Problema secundario que surge durante el curso de una enfermedad.
-- Curso Clinico: Evolucion de una enfermedad en el tiempo (agudo, cronico).
-- Remision: Disminucion parcial o total de los signos y sintomas.
-- Recaida: Reaparicion de una enfermedad tras un periodo de remision.
-- Estado Terminal: Etapa avanzada de una enfermedad donde la curacion no es posible.
-
-Adaptacion Celular
-- Atrofia: Disminucion del tamano celular.
-- Hipertrofia: Aumento del tamano celular.
-- Hiperplasia: Aumento del numero de celulas.
-- Metaplasia: Cambio reversible de un tipo celular por otro.
-- Displasia: Crecimiento celular desordenado, a menudo pre-canceroso.
-
-Muerte Celular
-- Necrosis: Muerte celular por lesion externa, causa inflamacion.
-- Apoptosis: Muerte celular programada, un proceso ordenado y sin inflamacion.
-
-Epidemiologia
-- Mortalidad: Tasa de muertes causadas por una enfermedad.
-- Morbidez: Frecuencia de una enfermedad en una poblacion.
-- Incidencia: Numero de CASOS NUEVOS en un periodo.
-- Prevalencia: Numero TOTAL de casos (nuevos y existentes) en un momento.
-            `;
-
-            doc.setFontSize(18);
-            doc.text(title, 10, 20);
-            doc.setFontSize(10);
-            const lines = doc.splitTextToSize(content, 180);
-            doc.text(lines, 10, 30);
-            
-            doc.save('Resumen-Patologia-Clinica.pdf');
-        });
+        downloadPdfButton.addEventListener('click', downloadStudyGuide);
+        downloadGuideFromReportButton.addEventListener('click', downloadStudyGuide);
     </script>
 </body>
 </html>
